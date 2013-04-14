@@ -57,7 +57,8 @@ class Member(object):
             {"python key": "timestamp", "json key": "timestamp"},
             {"python key": "is_owner", "json key": "is_owner"},
             {"python key": "presence", "json key": "is_online"},
-            {"python key": "pokeable", "json key": "pokeable"},]
+            {"python key": "pokeable", "json key": "pokeable"},
+    ]
 
     def __init__(self, res):
         buildpy(self, res, self.mapping)
@@ -116,8 +117,6 @@ class Room(object):
 
 class Message(object):
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-
-
     mapping = [
             {"python key": "id", "json key": "id"},
             {"python key": "local_id", "json key": "local_id"},
@@ -129,7 +128,7 @@ class Message(object):
             {"python key": "icon_url", "json key": "icon_url"},
             {"python key": "favorite_id", "json key": "favorite_id"},
             {"python key": "text", "json key": "text"},
-            {"python key": "timestamp", "json key": "timestamp", 
+            {"python key": "timestamp", "json key": "timestamp",
                 "python proc": lambda s : # TODO: use GMT?
                 time.localtime(time.mktime(time.strptime(s, Message.TIMESTAMP_FORMAT)) - time.timezone)
                 },
@@ -138,7 +137,7 @@ class Message(object):
     def __init__(self, res):
         buildpy(self, res, self.mapping)
 
-        self.mine = False 
+        self.mine = False
         #FIXME not used
 
     def decide_mine(self, my_public_session_id):
@@ -150,9 +149,9 @@ class Message(object):
             __name__, self.__class__.__name__, self, self.text.encode('utf-8', ENCODING_MODE))
 
     def __cmp__(self, other):
-        if ( self.id > other.id) :
+        if self.id > other.id:
             return 1
-        elif (self.id < other.id):
+        elif self.id < other.id:
             return -1
         else:
             return 0
@@ -417,7 +416,7 @@ class Connection(object):
                         m = Message(d)
                         if m.id in self.last_message_ids:
                             continue
-                        last_message_ids.add(m.id) 
+                        last_message_ids.add(m.id)
                         m.decide_mine(self.public_id)
                         for h in self.message_hooks:
                             h(self, room, m)
