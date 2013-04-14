@@ -114,27 +114,12 @@ class MessageJar(object):
         entry = self.volt[room_id]
         return entry[0].id
 
-    def _dummy_message(self):
-        return lingr.Message({
-            'id': '-1',
-            'local_id': '-1',
-            'public_session_id': '-1',
-            'room': '',
-            'type': 'dummy',
-            'nickname': '-',
-            'speaker_id': '-1',
-            'icon_url': '',
-            'text': '-',
-            'timestamp': time.strftime(lingr.Message.TIMESTAMP_FORMAT, time.gmtime())
-            })
-
     def iter_messages(self, room_id):
         """
         iterates over messages of specified room, by its room_id.
         """
         assert room_id in self.volt
 
-        yield self._dummy_message()
         for m in self.volt[room_id]:
             yield m
 
@@ -161,14 +146,6 @@ class MessageJar(object):
 
     def bulk_load(self, room_id, res):
         """
-        archives = []
-        for m in res["messages"]:
-            archives.append(lingr.Message(m))
-
-        if len(archives) > 0:
-            archives.append(self._dummy_message())
-
-        self.messages[self.current_room_id] = archives + messages 
         """
         assert room_id in self.volt
 
@@ -408,12 +385,28 @@ class LingrVim(object):
         self.render_rooms()
         self.render_members()
 
+    def _dummy_message(self):
+        return lingr.Message({
+            'id': '-1',
+            'local_id': '-1',
+            'public_session_id': '-1',
+            'room': '',
+            'type': 'dummy',
+            'nickname': '-',
+            'speaker_id': '-1',
+            'icon_url': '',
+            'text': '-',
+            'timestamp': time.strftime(lingr.Message.TIMESTAMP_FORMAT, time.gmtime())
+            })
+
     def _render_messages(self):
         del self.messages_buffer[:]
         self.line2message = {}
 
         self.messages_buffer[0] = LingrVim.GET_ARCHIVES_MESSAGE
         self.last_speaker_id = ""
+
+        self._show_message(self._dummy_message())
         for m in self.mj.iter_messages(self.current_room_id):
             self._show_message(m)
         redraw_statusline()
