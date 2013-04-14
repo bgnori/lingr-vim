@@ -149,6 +149,14 @@ class Message(object):
         return "<{0}.{1} {2.speaker_id}: {3}>".format(
             __name__, self.__class__.__name__, self, self.text.encode('utf-8', ENCODING_MODE))
 
+    def __cmp__(self, other):
+        if ( self.id > other.id) :
+            return 1
+        elif (self.id < other.id):
+            return -1
+        else:
+            return 0
+
 
 class APIError(Exception):
     def __init__(self, res):
