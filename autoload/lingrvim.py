@@ -106,11 +106,34 @@ class MessageJar(object):
 
         self.volt[room_id] = entry
 
-    def get_last_id(self, room_id):
+    def get_oldest_message_id(self, room_id):
         assert room_id in self.volt
+        entry = self.volt[room_id]
+        return entry[0].id
+
+    def _dummy_message(self):
+        return lingr.Message({
+            'id': '-1',
+            'local_id': '-1',
+            'public_session_id': '-1',
+            'room': '',
+            'type': 'dummy',
+            'nickname': '-',
+            'speaker_id': '-1',
+            'icon_url': '',
+            'text': '-',
+            'timestamp': time.strftime(lingr.Message.TIMESTAMP_FORMAT, time.gmtime())
+            })
 
     def iter_messages(self, room_id):
+        """
+        iterates over messages of specified room, by its room_id.
+        """
         assert room_id in self.volt
+        """
+        maybe we can yield dummy message here.
+        self._dummy_message())
+        """
         for m in self.vold[room_id]:
             yield m
 
@@ -335,7 +358,7 @@ class LingrVim(object):
     def get_archives(self):
         if self.mj.get_count(self.current_room_id) == 0:
             return 
-        res = self.lingr.get_archives(self.current_room_id, self.mj.get_last_id(self.current_room_id) )
+        res = self.lingr.get_archives(self.current_room_id, self.mj.get_oldest_message_id(self.current_room_id))
         self.mj.bulk_load(self.current_room_id, res)
         self.render_messages()
 
@@ -463,20 +486,6 @@ class LingrVim(object):
             else LingrVim.LEAVE_MESSAGE
         self.messages_buffer.append(
             format.format(member.name.encode(VIM_ENCODING, ENCODING_MODE)))
-
-    def _dummy_message(self):
-        return lingr.Message({
-            'id': '-1',
-            'local_id': '-1',
-            'public_session_id': '-1',
-            'room': '',
-            'type': 'dummy',
-            'nickname': '-',
-            'speaker_id': '-1',
-            'icon_url': '',
-            'text': '-',
-            'timestamp': time.strftime(lingr.Message.TIMESTAMP_FORMAT, time.gmtime())
-            })
 
     def push_operation(self, operation):
         self.queue_lock.acquire()
