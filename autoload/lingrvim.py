@@ -135,7 +135,7 @@ class MessageJar(object):
         assert room_id in self.volt
 
         yield self._dummy_message()
-        for m in self.vold[room_id]:
+        for m in self.volt[room_id]:
             yield m
 
     def _index(self, room_id, message):
