@@ -30,3 +30,4 @@ m = lingr.Member({
     })
 
 print dir(m)
+print m
