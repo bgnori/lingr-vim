@@ -94,6 +94,9 @@ class MessageJar(object):
         # currently doing non db implementation for ensure correctness of interface.
         self.volt = dict()
 
+    def has_room(self, room_id):
+        return room_id in self.volt
+
     def make_room(self, room_id):
         assert room_id not in self.volt
         self.volt[room_id] = []
@@ -248,7 +251,7 @@ class LingrVim(object):
             for id, room in sender.rooms.iteritems():
                 unread_count = self.unread_counts[id] if id in self.unread_counts else 0
 
-                if not id in self.mj:
+                if not self.mj.has_room(id):
                     self.mj.make_room(id)
                     for m in room.backlog:
                         self.mj.add_message(id, m)
