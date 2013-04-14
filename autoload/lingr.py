@@ -41,15 +41,26 @@ import sys
 
 ENCODING_MODE = 'ignore'
 
+def buildpy(obj, res, mapping):
+    for entry in mapping:
+        v = res.get(entry["json key"], entry.get("python default", None))
+        f = entry.get("python proc", None)
+        if f:
+            v = f(v)
+        setattr(obj, entry["python key"], v)
+
 class Member(object):
+    mapping = [
+            {"python key": "username", "json key": "username"},
+            {"python key": "name", "json key": "name"},
+            {"python key": "icon_url", "json key": "icon_url"},
+            {"python key": "timestamp", "json key": "timestamp"},
+            {"python key": "is_owner", "json key": "is_owner"},
+            {"python key": "presence", "json key": "is_online"},
+            {"python key": "pokeable", "json key": "pokeable"},]
+
     def __init__(self, res):
-        self.username = res["username"]
-        self.name = res["name"]
-        self.icon_url = res["icon_url"]
-        self.timestamp = res["timestamp"]
-        self.is_owner = res["is_owner"]
-        self.presence = res["is_online"]
-        self.pokeable = res["pokeable"]
+        buildpy(self, res, self.mapping)
 
     def __repr__(self):
         return "<{0}.{1} {2.username} {3}>".format(
@@ -101,31 +112,37 @@ class Room(object):
         return "<{0}.{1} {2.id}>".format(__name__, self.__class__.__name__, self)
 
 
+
+
 class Message(object):
     TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
+
+    mapping = [
+            {"python key": "id", "json key": "id"},
+            {"python key": "local_id", "json key": "local_id"},
+            {"python key": "public_session_id", "json key": "public_session_id"},
+            {"python key": "room", "json key": "room"},
+            {"python key": "type", "json key": "type"},
+            {"python key": "nickname", "json key": "nickname"},
+            {"python key": "speaker_id", "json key": "speaker_id"},
+            {"python key": "icon_url", "json key": "icon_url"},
+            {"python key": "favorite_id", "json key": "favorite_id"},
+            {"python key": "text", "json key": "text"},
+            {"python key": "timestamp", "json key": "timestamp", 
+                "python proc": lambda s : # TODO: use GMT?
+                time.localtime(time.mktime(time.strptime(s, Message.TIMESTAMP_FORMAT)) - time.timezone)
+                },
+    ]
+
     def __init__(self, res):
-        self.id = res["id"]
-        self.local_id = res["local_id"]
-        self.public_session_id = res["public_session_id"]
-        self.room = res["room"]
-        self.type = res["type"]
-        self.nickname = res["nickname"]
-        self.speaker_id = res["speaker_id"]
-        self.icon_url = res["icon_url"]
-        if "favorite_id" in res:
-            self.favorite_id = res["favorite_id"]
-        else:
-            self.favorite_id = None
-        self.text = res["text"]
+        buildpy(self, res, self.mapping)
 
-        # TODO: use GMT?
-        t = time.strptime(res["timestamp"], Message.TIMESTAMP_FORMAT)
-        self.timestamp = time.localtime(time.mktime(t) - time.timezone)
-
-        self.mine = False
+        self.mine = False 
+        #FIXME not used
 
     def decide_mine(self, my_public_session_id):
+        #FIXME not used
         self.mine = self.public_session_id == my_public_session_id
 
     def __repr__(self):
