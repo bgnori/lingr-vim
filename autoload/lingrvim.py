@@ -30,6 +30,8 @@ import socket
 import time
 import logging
 
+import sqlite3
+
 VIM_ENCODING = vim.eval('&encoding')
 ENCODING_MODE = 'ignore'
 
@@ -74,6 +76,39 @@ def redraw_statusline():
 
 def doautocmd(event):
     vim.command('doautocmd User plugin-lingr-' + event)
+
+
+
+class MessageJar(object):
+    def __init__(self):
+        self.message_db_conn = sqlite3.connect(":memory:")
+
+    def make_room(self, id):
+        pass
+
+    def add_message(self, id, m):
+        pass
+
+    def get_last_id(self, room_id):
+        pass
+
+    def iter_messages(self, room_id):
+        pass
+
+    def remove(self, message):
+        pass
+
+    def bulk_load(self, res):
+        """
+        archives = []
+        for m in res["messages"]:
+            archives.append(lingr.Message(m))
+
+        if len(archives) > 0:
+            archives.append(self._dummy_message())
+
+        self.messages[self.current_room_id] = archives + messages 
+        """
 
 
 class LingrVim(object):
@@ -123,7 +158,9 @@ class LingrVim(object):
         self.room_ids = None      # ["room1", "room2", "room3", ...
         self.rooms = None         # {"room1": lingr.Room, "room2": lingr.Room, ...
         self.current_members = [] # ["online1", "online2", ... , "offline1", ... , "bot1", ...
-        self.messages = {}        # {"room1": [message1, message2], "room2": [message1, ...
+
+        self.mj = MessageJar()
+
         self.unread_counts = {}   # {"room1": 2, "room2": 0, ...
         self.focused_buffer = None
         self.line2message = {}    # {0: lingr.Message, 3: lingr.Message, ... , n: lingr.Message, ...
@@ -150,10 +187,10 @@ class LingrVim(object):
             for id, room in sender.rooms.iteritems():
                 unread_count = self.unread_counts[id] if id in self.unread_counts else 0
 
-                if not id in self.messages:
-                    self.messages[id] = []
+                if not id in self.mj:
+                    self.mj.make_room(id)
                     for m in room.backlog:
-                        self.messages[id].append(m)
+                        self.mj.add_message(id, m)
                         unread_count += 1
 
                 self.unread_counts[id] = unread_count
@@ -188,7 +225,8 @@ class LingrVim(object):
             self.push_operation(RenderOperation(RenderOperation.ERROR))
 
         def message_hook(sender, room, message):
-            self.messages[room.id].append(message)
+            self.mj.add_message(room.id, message)
+
             self.push_operation(RenderOperation(RenderOperation.MESSAGE,
                 {"message": message, "room": room}))
             if int(vim.eval('g:lingr_vim_count_unread_at_current_room')) \
@@ -257,20 +295,10 @@ class LingrVim(object):
         return m.username if hasattr(m, 'username') else 'bot/' + m.id
 
     def get_archives(self):
-        messages = self.messages[self.current_room_id]
-        if len(messages) == 0:
-            return
-
-        res = self.lingr.get_archives(self.current_room_id, messages[0].id)
-
-        archives = []
-        for m in res["messages"]:
-            archives.append(lingr.Message(m))
-
-        if len(archives) > 0:
-            archives.append(self._dummy_message())
-
-        self.messages[self.current_room_id] = archives + messages
+        if self.mj.get_count(self.current_room_id) == 0:
+            return 
+        res = self.lingr.get_archives(self.current_room_id, self.mj.get_last_id(self.current_room_id) )
+        self.mj.bulk_load(res)
         self.render_messages()
 
     def say(self, text):
@@ -292,7 +320,7 @@ class LingrVim(object):
             m = self.line2message[lnum]
             if int(vim.eval('confirm("Delete this message?", "&Yes\n&No", 2)')) == 1:
                 self.lingr.delete_message(self.current_room_id, m)
-                self.messages[self.current_room_id].remove(m)
+                self.mj.remove(m)
 
     def unread_count(self):
         return reduce(lambda a, b: a + b, self.unread_counts.values())
@@ -320,7 +348,7 @@ class LingrVim(object):
 
         self.messages_buffer[0] = LingrVim.GET_ARCHIVES_MESSAGE
         self.last_speaker_id = ""
-        for m in self.messages[self.current_room_id]:
+        for m in self.mj.iter_messages(self.current_room_id):
             self._show_message(m)
         redraw_statusline()
 
@@ -345,13 +373,13 @@ class LingrVim(object):
         offlines = filter(lambda x: not x.presence, members)
 
         for m in onlines:
-            owner = '(owner)' if m.owner else ''
+            owner = '(owner)' if m.is_owner else ''
             text = m.name.encode(VIM_ENCODING, ENCODING_MODE) + owner + " +"
             self.members_buffer.append(text)
             self.current_members.append(m)
 
         for m in offlines:
-            owner = '(owner)' if m.owner else ''
+            owner = '(owner)' if m.is_owner else ''
             text = m.name.encode(VIM_ENCODING, ENCODING_MODE) + owner + " -"
             self.members_buffer.append(text)
             self.current_members.append(m)
