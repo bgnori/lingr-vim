@@ -133,10 +133,8 @@ class MessageJar(object):
         iterates over messages of specified room, by its room_id.
         """
         assert room_id in self.volt
-        """
-        maybe we can yield dummy message here.
-        self._dummy_message())
-        """
+
+        yield self._dummy_message()
         for m in self.vold[room_id]:
             yield m
 
