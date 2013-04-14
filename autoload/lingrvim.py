@@ -138,6 +138,10 @@ class MessageJar(object):
         for m in self.volt[room_id]:
             yield m
 
+    def get_count(self, room_id):
+        assert room_id in self.volt
+        return len(self.volt[room_id])
+
     def _index(self, room_id, message):
         assert room_id in self.volt
         entry = self.volt[room_id]
