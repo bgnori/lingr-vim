@@ -101,7 +101,7 @@ class MessageJar(object):
         assert room_id not in self.volt
         self.volt[room_id] = []
 
-    def add_message(self, room_id, msg):
+    def add_message(self, room_id, message):
         assert room_id in self.volt
         entry = self.volt[room_id]
 
