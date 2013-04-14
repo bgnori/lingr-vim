@@ -23,14 +23,23 @@
 #     THE SOFTWARE.
 # }}}
 
-import vim
+if __name__ == "__main__":
+    """ for simple syntax checking with quick run"""
+    class Mock:
+        def eval(self, s):
+            return "eval result of '%s'"%(s,)
+    vim = Mock()
+else:
+    import vim
+
 import lingr
 import threading
 import socket
 import time
 import logging
 
-import sqlite3
+import bisect
+#import sqlite3
 
 VIM_ENCODING = vim.eval('&encoding')
 ENCODING_MODE = 'ignore'
@@ -78,27 +87,51 @@ def doautocmd(event):
     vim.command('doautocmd User plugin-lingr-' + event)
 
 
-
 class MessageJar(object):
     def __init__(self):
-        self.message_db_conn = sqlite3.connect(":memory:")
+        #self.message_db_conn = sqlite3.connect(":memory:")
+        # may use  lingr.Message.mapping for schema
+        # currently doing non db implementation for ensure correctness of interface.
+        self.volt = dict()
 
-    def make_room(self, id):
-        pass
+    def make_room(self, room_id):
+        assert room_id not in self.volt
+        self.volt[room_id] = []
 
-    def add_message(self, id, m):
-        pass
+    def add_message(self, room_id, msg):
+        assert room_id in self.volt
+        entry = self.volt[room_id]
+
+        bisect.insort_left(entry, message) #Tempolary.  O(n), slow.
+
+        self.volt[room_id] = entry
 
     def get_last_id(self, room_id):
-        pass
+        assert room_id in self.volt
 
     def iter_messages(self, room_id):
-        pass
+        assert room_id in self.volt
+        for m in self.vold[room_id]:
+            yield m
 
-    def remove(self, message):
-        pass
+    def _index(self, room_id, message):
+        assert room_id in self.volt
+        entry = self.volt[room_id]
 
-    def bulk_load(self, res):
+        i = bisect.bisect_left(entry, message)
+        if i != len(entry) and x[i] == message:
+            return i
+        raise ValueError #not found
+
+
+    def remove(self, room_id, message):
+        assert room_id in self.volt
+        pos = self._index(room_id, message)
+        entry = self.volt[room_id]
+        self.volt[room_id] = entry[:pos] + entry[pos+1:]
+
+
+    def bulk_load(self, room_id, res):
         """
         archives = []
         for m in res["messages"]:
@@ -109,6 +142,11 @@ class MessageJar(object):
 
         self.messages[self.current_room_id] = archives + messages 
         """
+        assert room_id in self.volt
+
+        for m in res["messages"]:
+            self.add_message(room_id, lingr.Message(m)) #slow!!
+        #UGH! dummy message!
 
 
 class LingrVim(object):
@@ -298,7 +336,7 @@ class LingrVim(object):
         if self.mj.get_count(self.current_room_id) == 0:
             return 
         res = self.lingr.get_archives(self.current_room_id, self.mj.get_last_id(self.current_room_id) )
-        self.mj.bulk_load(res)
+        self.mj.bulk_load(self.current_room_id, res)
         self.render_messages()
 
     def say(self, text):
@@ -320,7 +358,7 @@ class LingrVim(object):
             m = self.line2message[lnum]
             if int(vim.eval('confirm("Delete this message?", "&Yes\n&No", 2)')) == 1:
                 self.lingr.delete_message(self.current_room_id, m)
-                self.mj.remove(m)
+                self.mj.remove(self.current_room_id, m)
 
     def unread_count(self):
         return reduce(lambda a, b: a + b, self.unread_counts.values())
