@@ -236,7 +236,7 @@ class SQLMessageJar(MessageJar):
 
     def get_oldest_message_id(self, room_id):
         cur = self.conn.cursor() 
-        cur.execute("select id from messages where room = (?) ordered by id asc limit 1", (room_id,))
+        cur.execute("select id from messages where room = (?) order by id asc limit 1", (room_id,))
         n = cur.fetchone()
         cur.close()
         return n[0]
