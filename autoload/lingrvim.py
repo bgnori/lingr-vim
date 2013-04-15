@@ -264,7 +264,10 @@ class SQLMessageJar(MessageJar):
     def bulk_load(self, room_id, res):
         cur = self.conn.cursor() 
         for m in res["messages"]:
-            cur.execute("insert into messages(m) value (?)", (m,))
+            message = lingr.Message(m) #FIXME
+            cur.execute("insert into messages(" + SQLMessageJar.FIELDS + 
+                    ") values (" + SQLMessageJar.PLACEHOLDER + ")", 
+                    tuple(obj2values(lingr.Message.mapping, message)))
         cur.close()
 
 
