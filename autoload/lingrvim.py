@@ -169,7 +169,7 @@ class ListMessageJar(MessageJar):
         assert room_id in self.volt
 
         for m in res["messages"]:
-            self.add_message(room_id, lingr.Message(m)) #slow!!
+            self.add_message(room_id, lingr.Message.fromJSON(m)) #slow!!
         #UGH! dummy message!
 
 
@@ -182,21 +182,12 @@ def map2placeholder(mapping):
 def obj2values(mapping, obj):
     for entry in mapping:
         key = entry['python key']
-        #FIXME
-        if key != "timestamp":
-            yield getattr(obj, key)
-        else:
-            v = getattr(obj, key)
-            yield time.mktime(v)
+        yield getattr(obj, key)
 
 def values2dict(mapping, ts):
     d  = dict()
     for entry, value in zip(mapping, ts):
-        key = entry['python key']
-        if key != "timestamp":
-            d[key] = value
-        else:
-            d[key] = time.strftime(lingr.Message.TIMESTAMP_FORMAT, time.localtime(value + time.timezone))
+        d[entry['python key']] = value
     return d
 
 
@@ -247,7 +238,7 @@ class SQLMessageJar(MessageJar):
         got = cur.fetchmany()
         while got:
             for ts in got:
-                yield lingr.Message(values2dict(lingr.Message.mapping, ts))
+                yield lingr.Message.fromDict(values2dict(lingr.Message.mapping, ts))
             got = cur.fetchmany()
         cur.close()
 
@@ -264,7 +255,7 @@ class SQLMessageJar(MessageJar):
     def bulk_load(self, room_id, res):
         cur = self.conn.cursor() 
         for m in res["messages"]:
-            message = lingr.Message(m) #FIXME
+            message = lingr.Message.fromJSON(m)
             cur.execute("insert into messages(" + SQLMessageJar.FIELDS + 
                     ") values (" + SQLMessageJar.PLACEHOLDER + ")", 
                     tuple(obj2values(lingr.Message.mapping, message)))
@@ -504,7 +495,7 @@ class LingrVim(object):
         self.render_members()
 
     def _dummy_message(self):
-        return lingr.Message({
+        return lingr.Message.fromJSON({
             'id': '-1',
             'local_id': '-1',
             'public_session_id': '-1',
@@ -577,7 +568,8 @@ class LingrVim(object):
             if self.last_speaker_id != message.speaker_id:
                 name = message.nickname.encode(VIM_ENCODING, ENCODING_MODE)
                 mine = "*" if message.speaker_id == self.lingr.username else ""
-                t = time.strftime(vim.eval('g:lingr_vim_time_format'), message.timestamp)
+                t = time.strftime(vim.eval('g:lingr_vim_time_format'), 
+                        time.localtime(message.timestamp - time.timezone))
                 text = LingrVim.MESSAGE_HEADER.format(name, t, mine)
                 self.messages_buffer.append(text)
 

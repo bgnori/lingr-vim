@@ -3,7 +3,7 @@
 import time
 import lingr
 
-m = lingr.Message({
+m = lingr.Message.fromJSON({
             'id': '-1',
             'local_id': '-1',
             'public_session_id': '-1',
@@ -36,7 +36,7 @@ import lingrvim
 
 jar = lingrvim.SQLMessageJar();
 
-jar.add_message("", lingr.Message({
+jar.add_message("", lingr.Message.fromJSON({
             'id': '-1',
             'local_id': '-1',
             'public_session_id': '-1',

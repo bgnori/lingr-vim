@@ -92,7 +92,7 @@ class Room(object):
 
         if "messages" in res:
             for m in res["messages"]:
-                self.backlog.append(Message(m))
+                self.backlog.append(Message.fromJSON(m))
 
         if "roster" in res:
             if "members" in res["roster"]:
@@ -129,20 +129,26 @@ class Message(object):
             {"python key": "favorite_id", "json key": "favorite_id"},
             {"python key": "text", "json key": "text"},
             {"python key": "timestamp", "json key": "timestamp",
-                "python proc": lambda s : # TODO: use GMT?
-                time.localtime(time.mktime(time.strptime(s, Message.TIMESTAMP_FORMAT)) - time.timezone)
+                "python proc": lambda s :
+                    time.mktime(time.strptime(s, Message.TIMESTAMP_FORMAT))
                 },
     ]
 
-    def __init__(self, res):
-        buildpy(self, res, self.mapping)
+    @classmethod
+    def fromJSON(klass, res):
+        m = Message()
+        buildpy(m, res, klass.mapping)
+        return m
 
-        self.mine = False
-        #FIXME not used
+    @classmethod
+    def fromDict(klass, d):
+        m = Message()
+        for k, v in d.iteritems():
+            setattr(m, k, v)
+        return m
 
-    def decide_mine(self, my_public_session_id):
-        #FIXME not used
-        self.mine = self.public_session_id == my_public_session_id
+    def __init__(self): 
+        pass
 
     def __repr__(self):
         return "<{0}.{1} {2.speaker_id}: {3}>".format(
@@ -410,7 +416,7 @@ class Connection(object):
                     d = event["message"]
                     if d["room"] in self.rooms:
                         room = self.rooms[d["room"]]
-                        m = Message(d)
+                        m = Message.fromJSON(d)
                         m.decide_mine(self.public_id)
                         for h in self.message_hooks:
                             h(self, room, m)
