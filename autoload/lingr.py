@@ -336,8 +336,6 @@ class Connection(object):
         if "rooms" in res:
             for d in res["rooms"]:
                 r = Room(d)
-                for m in r.backlog:
-                    m.decide_mine(self.public_id)
                 self.rooms[r.id] = r
 
         return res
@@ -417,7 +415,6 @@ class Connection(object):
                     if d["room"] in self.rooms:
                         room = self.rooms[d["room"]]
                         m = Message.fromJSON(d)
-                        m.decide_mine(self.public_id)
                         for h in self.message_hooks:
                             h(self, room, m)
 
