@@ -352,7 +352,7 @@ class Connection(object):
         res = self._post("room/subscribe",
             {"session": self.session, "room": room_id, "reset": str(reset).lower()})
         self._debug("room/subscribe response: " + str(res))
-        sel.update_counter(res["counter"])
+        self.update_counter(res["counter"])
         return res
 
     def unsubscribe(self, room_id):
