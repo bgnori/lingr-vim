@@ -194,10 +194,12 @@ def obj2values(mapping, obj):
 class SQLMessageJar(MessageJar):
     FIELDS = map2field(lingr.Message.mapping, ',')
     PLACEHOLDER = map2placeholder(lingr.Message.mapping)
+    DBFILE = 'messagejar.sqlite'
 
     def __init__(self):
         # may use  lingr.Message.mapping for schema
-        self.conn = sqlite3.connect(":memory:", detect_types=sqlite3.PARSE_DECLTYPES)
+        #self.conn = sqlite3.connect(DBFILE, detect_types=sqlite3.PARSE_DECLTYPES)
+        self.conn = sqlite3.connect(":memory:", check_same_thread = False, detect_types=sqlite3.PARSE_DECLTYPES)
         cur = self.conn.cursor() 
 
         cur.execute("create table messages(" + SQLMessageJar.FIELDS + ")")
