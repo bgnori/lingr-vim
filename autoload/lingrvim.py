@@ -23,14 +23,15 @@
 #     THE SOFTWARE.
 # }}}
 
-if __name__ == "__main__":
+try:
+    import vim
+except:
+    print "running with Mock"
     """ for simple syntax checking with quick run"""
     class Mock:
         def eval(self, s):
             return "eval result of '%s'"%(s,)
     vim = Mock()
-else:
-    import vim
 
 import lingr
 import threading
@@ -39,7 +40,11 @@ import time
 import logging
 
 import bisect
-#import sqlite3
+
+import sqlite3
+
+
+
 
 VIM_ENCODING = vim.eval('&encoding')
 ENCODING_MODE = 'ignore'
@@ -87,11 +92,25 @@ def doautocmd(event):
     vim.command('doautocmd User plugin-lingr-' + event)
 
 
+
 class MessageJar(object):
+    """
+        list of methods to implement.
+    """
+    def __init__(self):pass
+    def has_room(self, room_id):pass
+    def make_room(self, room_id):pass
+    def add_message(self, room_id, message):pass
+    def get_oldest_message_id(self, room_id):pass
+    def iter_messages(self, room_id):pass
+    def get_count(self, room_id):pass
+    def remove(self, room_id, message):pass
+    def bulk_load(self, room_id, res):pass
+
+
+class ListMessageJar(MessageJar):
     def __init__(self):
-        #self.message_db_conn = sqlite3.connect(":memory:")
-        # may use  lingr.Message.mapping for schema
-        # currently doing non db implementation for ensure correctness of interface.
+        # non db implementation for ensure correctness of interface.
         self.volt = dict()
 
     def has_room(self, room_id):
@@ -154,6 +173,91 @@ class MessageJar(object):
         #UGH! dummy message!
 
 
+def map2field(mapping, sep):
+    return sep.join([entry['python key'] for entry in mapping])
+
+def map2placeholder(mapping):
+    return ','.join(['?' for entry in mapping])
+
+def obj2values(mapping, obj):
+    for entry in mapping:
+        key = entry['python key']
+        #FIXME
+        if key != "timestamp":
+            yield getattr(obj, key)
+        else:
+            v = getattr(obj, key)
+            yield time.mktime(v)
+
+
+
+class SQLMessageJar(MessageJar):
+    FIELDS = map2field(lingr.Message.mapping, ',')
+    PLACEHOLDER = map2placeholder(lingr.Message.mapping)
+
+    def __init__(self):
+        # may use  lingr.Message.mapping for schema
+        self.conn = sqlite3.connect(":memory:", detect_types=sqlite3.PARSE_DECLTYPES)
+        cur = self.conn.cursor() 
+
+        cur.execute("create table messages(" + SQLMessageJar.FIELDS + ")")
+        cur.close()
+
+    def has_room(self, room_id):
+        cur = self.conn.cursor() 
+        cur.execute("select count(id) from messages where room = (?)", (room_id,))
+        result = bool(cur.fetch())
+        cur.close()
+        return result
+
+    def make_room(self, room_id):
+        """
+            Nothing to do. unless we add table for room.
+        """
+        pass
+
+    def add_message(self, room_id, message):
+        cur = self.conn.cursor() 
+        cur.execute("insert into messages(" + SQLMessageJar.FIELDS + 
+                    ") values (" + SQLMessageJar.PLACEHOLDER + ")", 
+                    tuple(obj2values(lingr.Message.mapping, message)))
+        cur.close()
+
+    def get_oldest_message_id(self, room_id):
+        cur = self.conn.cursor() 
+        cur.execute("select id from messages where room = (?) ordered by id asc limit 1", (room_id,))
+        n = cur.fetchone()
+        cur.close()
+        return n[0]
+
+    def iter_messages(self, room_id):
+        cur = self.conn.cursor() 
+        cur.execute("select p from messages where room = (?)", (room_id,))
+        got = cur.fetchmany()
+        while got:
+            for m in got:
+                yield m
+            got = cur.fetchmany()
+        cur.close()
+
+    def get_count(self, room_id):
+        cur = self.conn.cursor() 
+        cur.execute("select count(id) from messages where room = (?)", (room_id,))
+        n = cur.fetchone()
+        cur.close()
+        return n[0]
+
+    def remove(self, room_id, message):
+        pass
+
+    def bulk_load(self, room_id, res):
+        cur = self.conn.cursor() 
+        for m in res["messages"]:
+            cur.execute("insert into messages(m) value (?)", (m,))
+        cur.close()
+
+
+
 class LingrVim(object):
     JOIN_MESSAGE         = "-- {0} is now online"
     LEAVE_MESSAGE        = "-- {0} is now offline"
@@ -202,7 +306,7 @@ class LingrVim(object):
         self.rooms = None         # {"room1": lingr.Room, "room2": lingr.Room, ...
         self.current_members = [] # ["online1", "online2", ... , "offline1", ... , "bot1", ...
 
-        self.mj = MessageJar()
+        self.mj = SQLMessageJar()
 
         self.unread_counts = {}   # {"room1": 2, "room2": 0, ...
         self.focused_buffer = None
