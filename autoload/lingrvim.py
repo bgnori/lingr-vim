@@ -234,7 +234,7 @@ class SQLMessageJar(MessageJar):
 
     def iter_messages(self, room_id):
         cur = self.conn.cursor() 
-        cur.execute("select * from messages where room = (?) order by id asc", (room_id,))
+        cur.execute("select distinct * from messages where room = (?) order by id asc", (room_id,))
         got = cur.fetchmany()
         while got:
             for ts in got:
