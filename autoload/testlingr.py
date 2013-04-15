@@ -49,4 +49,12 @@ jar.add_message("", lingr.Message({
             'timestamp': time.strftime(lingr.Message.TIMESTAMP_FORMAT, time.gmtime())
             }))
 print jar.get_count('')
+for m in jar.iter_messages(''):
+    print m
+
+
+
+
+
+
 

@@ -189,6 +189,15 @@ def obj2values(mapping, obj):
             v = getattr(obj, key)
             yield time.mktime(v)
 
+def values2dict(mapping, ts):
+    d  = dict()
+    for entry, value in zip(mapping, ts):
+        key = entry['python key']
+        if key != "timestamp":
+            d[key] = value
+        else:
+            d[key] = time.strftime(lingr.Message.TIMESTAMP_FORMAT, time.localtime(value + time.timezone))
+    return d
 
 
 class SQLMessageJar(MessageJar):
@@ -234,11 +243,11 @@ class SQLMessageJar(MessageJar):
 
     def iter_messages(self, room_id):
         cur = self.conn.cursor() 
-        cur.execute("select p from messages where room = (?)", (room_id,))
+        cur.execute("select * from messages where room = (?)", (room_id,))
         got = cur.fetchmany()
         while got:
-            for m in got:
-                yield m
+            for ts in got:
+                yield lingr.Message(values2dict(lingr.Message.mapping, ts))
             got = cur.fetchmany()
         cur.close()
 
