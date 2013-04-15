@@ -352,8 +352,7 @@ class Connection(object):
         res = self._post("room/subscribe",
             {"session": self.session, "room": room_id, "reset": str(reset).lower()})
         self._debug("room/subscribe response: " + str(res))
-        if not self.counter:
-            self.counter = res["counter"]
+        sel.update_counter(res["counter"])
         return res
 
     def unsubscribe(self, room_id):
@@ -397,6 +396,12 @@ class Connection(object):
 
         message.favorite_id = None
         return res
+    
+    def update_counter(self, got):
+        """
+            http://lingr.com/room/lingr/archives/2010/06/10
+        """
+        self.counter = max(got, self.counter or 0)
 
     def observe(self):
         self._debug("requesting event/observe: " + str(self.counter))
@@ -404,9 +409,7 @@ class Connection(object):
         self._debug("event/observe response: " + str(res))
 
         if "counter" in res:
-            if res["counter"] <= self.counter:
-                return
-            self.counter = res["counter"]
+            self.update_counter(res["counter"])
 
         if "events" in res:
             for event in res["events"]:
