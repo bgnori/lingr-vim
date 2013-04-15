@@ -208,7 +208,7 @@ class SQLMessageJar(MessageJar):
     def has_room(self, room_id):
         cur = self.conn.cursor() 
         cur.execute("select count(id) from messages where room = (?)", (room_id,))
-        result = bool(cur.fetch())
+        result = bool(cur.fetchone()[0])
         cur.close()
         return result
 
