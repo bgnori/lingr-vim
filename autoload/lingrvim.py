@@ -106,6 +106,7 @@ class MessageJar(object):
     def get_count(self, room_id):pass
     def remove(self, room_id, message):pass
     def bulk_load(self, room_id, res):pass
+    def close(self):pass
 
 
 class ListMessageJar(MessageJar):
@@ -199,11 +200,23 @@ class SQLMessageJar(MessageJar):
     def __init__(self):
         # may use  lingr.Message.mapping for schema
         #self.conn = sqlite3.connect(DBFILE, detect_types=sqlite3.PARSE_DECLTYPES)
-        self.conn = sqlite3.connect(":memory:", check_same_thread = False, detect_types=sqlite3.PARSE_DECLTYPES)
+        self.conn = sqlite3.connect("lingr.sqlite", check_same_thread = False, detect_types=sqlite3.PARSE_DECLTYPES)
         cur = self.conn.cursor() 
 
-        cur.execute("create table messages(" + SQLMessageJar.FIELDS + ")")
+        if not self._has_messages():
+            cur.execute("create table messages(" + SQLMessageJar.FIELDS + ")")
+            self.conn.commit()
         cur.close()
+
+    def _has_messages(self):
+        cur = self.conn.cursor() 
+        cur.execute("select * from sqlite_master where type='table' and name='messages' ")
+        r = bool(cur.fetchone())
+        cur.close()
+        return r
+
+    def close(self):
+        self.conn.close()
 
     def has_room(self, room_id):
         cur = self.conn.cursor() 
@@ -223,6 +236,7 @@ class SQLMessageJar(MessageJar):
         cur.execute("insert into messages(" + SQLMessageJar.FIELDS + 
                     ") values (" + SQLMessageJar.PLACEHOLDER + ")", 
                     tuple(obj2values(lingr.Message.mapping, message)))
+        self.conn.commit()
         cur.close()
 
     def get_oldest_message_id(self, room_id):
@@ -254,12 +268,17 @@ class SQLMessageJar(MessageJar):
 
     def bulk_load(self, room_id, res):
         cur = self.conn.cursor() 
-        for m in res["messages"]:
-            message = lingr.Message.fromJSON(m)
-            cur.execute("insert into messages(" + SQLMessageJar.FIELDS + 
-                    ") values (" + SQLMessageJar.PLACEHOLDER + ")", 
-                    tuple(obj2values(lingr.Message.mapping, message)))
-        cur.close()
+        try:
+            for m in res["messages"]:
+                message = lingr.Message.fromJSON(m)
+                cur.execute("insert into messages(" + SQLMessageJar.FIELDS + 
+                        ") values (" + SQLMessageJar.PLACEHOLDER + ")", 
+                        tuple(obj2values(lingr.Message.mapping, message)))
+            self.conn.commit()
+        except:
+            self.conn.rollback()
+        finally:
+            cur.close()
 
 
 
@@ -416,6 +435,7 @@ class LingrVim(object):
                 except:
                     pass
         self.observer = None
+        self.mj.close()
 
     def set_focus(self, focused):
         if focused:
